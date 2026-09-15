@@ -1,51 +1,57 @@
-# COMP5521 Lab 2 — web3 image gas price fix
+# COMP5521 Lab 2 — Web3.js Smart Contract Lab
 
-## Problem
+This project contains the web3.js scripts for compiling, deploying and
+interacting with an `Incrementer` smart contract on the **Sepolia** test
+network:
 
-The course image `crumblejon/smart-contract-web3:latest` (last updated 2023-10-06)
-hardcodes `gasPrice: 1000000000` (1 gwei) in `deploy.js`, `increment.js` and
-`reset.js`. Sepolia is an EIP-1559 chain whose block base fee now exceeds 1 gwei,
-so every transaction is rejected by the EVM:
+| Script | Purpose |
+|---|---|
+| `deploy.js` | Deploy the `Incrementer` contract and return its address |
+| `increment.js` | Increase the counter by a given value |
+| `get_counter.js` | Read the current counter (no transaction needed) |
+| `reset.js` | Reset the counter to a given value |
 
-```
-err: max fee per gas less than block base fee: maxFeePerGas: 1000000000, baseFee: ...
-```
-
-## Fix
-
-Each script now queries the network's suggested gas price (with a 1.5x buffer)
-before signing the transaction:
-
-```js
-const gas_price = Math.ceil(Number(await instance.eth.getGasPrice()) * 1.5)
-// ...
-gasPrice: gas_price,
-```
-
-Verified on Sepolia (2026-09-15): `deploy`, `increment` and `reset` all succeed.
-
-## Build & publish (once, on the instructor's machine)
+The easiest way to use it is via the published Docker image (the image
+already contains everything, including the Solidity source and compiler):
 
 ```sh
-docker build -t <your-dockerhub-account>/comp5521-web3:lab2-2026 .
-docker login
-docker push <your-dockerhub-account>/comp5521-web3:lab2-2026
+docker run -itd --name web3 anthony2xuan/comp5521-web3:lab2-2026
 ```
 
-## Students
+## Getting started
+
+1. **Prepare two things first:**
+   - an Infura **API key** (sign up at https://infura.io and create a Sepolia endpoint);
+   - your MetaMask **private key** (never share it with anyone).
+
+2. **Configure your credentials inside the container:**
+
+   ```sh
+   docker exec web3 npm run secret <your_api_key> <your_private_key>
+   ```
+
+3. **Deploy the contract to Sepolia:**
+
+   ```sh
+   docker exec web3 npm run deploy
+   ```
+
+   The command prints the contract address and a link to view it on
+   Sepolia Etherscan.
+
+4. **Interact with the contract:**
+
+   ```sh
+   docker exec web3 npm run increment <address> <value>
+   docker exec web3 npm run counter <address>
+   docker exec web3 npm run reset <address> <value>
+   ```
+
+## Build the image yourself (optional)
 
 ```sh
-docker pull <your-dockerhub-account>/comp5521-web3:lab2-2026
-docker run -itd --name web3 <your-dockerhub-account>/comp5521-web3:lab2-2026
-docker exec web3 npm run secret    # set Infura PROJECT_ID + private key
-docker exec web3 npm run deploy
+docker build -t comp5521-web3 .
 ```
 
-Notes:
-
-- The original image starts an interactive `node` REPL; use `-itd` to run it
-  detached (without `-t` the container exits immediately).
-- Docker Hub anonymous pull limit is ~100 pulls / 6 h / IP. If a class shares
-  one campus IP, ask students to `docker login` with their own free account first.
-- Sepolia is scheduled for sunset around the end of 2026 with a successor
-  testnet launched alongside it — plan a network migration for future semesters.
+The Dockerfile derives from `crumblejon/smart-contract-web3` and adds the
+three scripts in this repository.
